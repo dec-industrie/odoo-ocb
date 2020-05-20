@@ -1042,12 +1042,16 @@ class Cache(object):
         key = record.env.cache_key(field)
         return record.id in self._data[key].get(field, ())
 
-    def get(self, record, field):
+    def get(self, record, field, print_content_on_exception=False):
         """ Return the value of ``field`` for ``record``. """
         key = record.env.cache_key(field)
         try:
             value = self._data[key][field][record._ids[0]]
+            _logger.debug('Cache.get [%s] %s.%s=%s', key, record._ids[0], field, value)
         except KeyError:
+            if print_content_on_exception:
+                _logger.debug('Cache.get [%s] %s.%s', key, record._ids[0], field)
+
             raise CacheMiss(record, field)
 
         return value.get() if isinstance(value, SpecialValue) else value
@@ -1056,15 +1060,19 @@ class Cache(object):
         """ Set the value of ``field`` for ``record``. """
         key = record.env.cache_key(field)
         self._data[key][field][record._ids[0]] = value
+        _logger.debug('Cache.set [%s] %s.%s=%s (len=%d) (field_len=%d)', key, record._ids[0], field, value, len(self._data[key]), len(self._data[key][field]) )
 
     def update(self, records, field, values):
         """ Set the values of ``field`` for several ``records``. """
+        #if not records.env.in_draft():
         key = records.env.cache_key(field)
+        _logger.debug('Cache.update [%s] %s %s -> %s', key, records, field, values)
         self._data[key][field].update(pycompat.izip(records._ids, values))
 
     def remove(self, record, field):
         """ Remove the value of ``field`` for ``record``. """
         key = record.env.cache_key(field)
+        _logger.debug('Cache.remove [%s] %s.%s', key, record.id, field)
         del self._data[key][field][record.id]
 
     def contains_value(self, record, field):
@@ -1077,12 +1085,14 @@ class Cache(object):
         """ Return the regular value of ``field`` for ``record``. """
         key = record.env.cache_key(field)
         value = self._data[key][field].get(record.id, SpecialValue(None))
+        _logger.debug('Cache.get_value [%s] %s.%s=%s', key, record._ids[0], field, value)
         return default if isinstance(value, SpecialValue) else value
 
     def get_special(self, record, field, default=None):
         """ Return the special value of ``field`` for ``record``. """
         key = record.env.cache_key(field)
         value = self._data[key][field].get(record.id)
+        _logger.debug('Cache.get_special [%s] %s.%s=%s', key, record._ids[0], field, value)
         return value.get if isinstance(value, SpecialValue) else default
 
     def set_special(self, record, field, getter):
@@ -1120,6 +1130,7 @@ class Cache(object):
                 yield record_id
 
     def copy(self, records, env):
+        _logger.debug('Cache.copy')
         """ Copy the cache of ``records`` to ``env``. """
         src, dst = records.env, env
         for src_key, dst_key in [(src, dst), (src._cache_key, dst._cache_key)]:
@@ -1136,6 +1147,7 @@ class Cache(object):
                         dst_field_cache[record_id] = value
 
     def invalidate(self, spec=None):
+        _logger.debug('Cache.invalidate')
         """ Invalidate the cache, partially or totally depending on ``spec``. """
         if spec is None:
             self._data.clear()
@@ -1143,15 +1155,18 @@ class Cache(object):
             for field, ids in spec:
                 if ids is None:
                     for data in self._data.values():
+                        _logger.debug('      Cache.invalidate pop field %s', field)
                         data.pop(field, None)
                 else:
                     for data in self._data.values():
                         field_cache = data.get(field)
                         if field_cache:
                             for id in ids:
+                                _logger.debug('      Cache.invalidate pop field.id %s.%d', field, id)
                                 field_cache.pop(id, None)
 
     def check(self, env):
+        _logger.debug('Cache.check')
         """ Check the consistency of the cache for the given environment. """
         # make a full copy of the cache, and invalidate it
         dump = defaultdict(dict)

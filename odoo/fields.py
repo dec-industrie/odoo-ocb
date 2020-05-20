@@ -11,6 +11,7 @@ from operator import attrgetter
 import itertools
 import logging
 import base64
+import traceback
 
 import pytz
 
@@ -609,6 +610,7 @@ class Field(MetaField('DummyField', (object,), {})):
 
     def _compute_related(self, records):
         """ Compute the related field ``self`` on ``records``. """
+        _logger.debug(' 8a _compute_related %s', self)
         # when related_sudo, bypass access rights checks when reading values
         others = records.sudo() if self.related_sudo else records
         # copy the cache of draft records into others' cache
@@ -644,8 +646,11 @@ class Field(MetaField('DummyField', (object,), {})):
         values = list(others)
         for name in self.related[:-1]:
             values = [first(value[name]) for value in values]
+            _logger.debug(' 8b copy values from others for %s -> %s', name, values)
+
         # assign final values to records
         for record, value in pycompat.izip(records, values):
+            _logger.debug(' 8c assign final value %s -> %s', self.name, value[self.related_field.name])
             record[self.name] = value[self.related_field.name]
 
     def _inverse_related(self, records):
@@ -1058,18 +1063,28 @@ class Field(MetaField('DummyField', (object,), {})):
         if record is None:
             return self         # the field is accessed through the owner class
 
-        if record:
-            # only a single record may be accessed
-            record.ensure_one()
+        def determine_and_get_value(record, field):
             try:
-                value = record.env.cache.get(record, self)
+                res = record.env.cache.get(record, field, print_content_on_exception=True)
             except KeyError:
                 # cache miss, determine value and retrieve it
                 if record.id:
-                    self.determine_value(record)
+                    _logger.debug(' 0a cache miss, determine %s', self)
+                    field.determine_value(record)
                 else:
-                    self.determine_draft_value(record)
-                value = record.env.cache.get(record, self)
+                    _logger.debug(' 0b cache miss, determine %s', self)
+                    field.determine_draft_value(record)
+                # recursive call since a relational field can be invalidated
+                # even after being added to cache
+                res = determine_and_get_value(record, field)
+            return res
+
+        if record:
+            # only a single record may be accessed
+            record.ensure_one()
+            _logger.debug(' -- cache miss, determine %s', self)
+            value = determine_and_get_value(record, self)
+            _logger.debug(' ++ cache miss, determine %s=%s', self, value)
         else:
             # null record -> return the null value for this field
             value = self.convert_to_cache(False, record, validate=False)
@@ -1118,11 +1133,16 @@ class Field(MetaField('DummyField', (object,), {})):
     def _compute_value(self, records):
         """ Invoke the compute method on ``records``. """
         # initialize the fields to their corresponding null value in cache
+        _logger.debug(' 7a _compute_value %s', self)
         fields = records._field_computed[self]
         cache = records.env.cache
         for field in fields:
+            #_logger.debug(' 7b _compute_value %s for field %s', self, field)
             for record in records:
-                cache.set(record, field, field.convert_to_cache(False, record, validate=False))
+                #_logger.debug(' 7c _compute_value %s for record %s', self, record)
+                value = field.convert_to_cache(False, record, validate=False)
+                cache.set(record, field, value)
+                _logger.debug(' .. record %s.%s=%s', record, field, value)
         if isinstance(self.compute, pycompat.string_types):
             getattr(records, self.compute)()
         else:
@@ -1130,16 +1150,20 @@ class Field(MetaField('DummyField', (object,), {})):
 
     def compute_value(self, records):
         """ Invoke the compute method on ``records``; the results are in cache. """
+        _logger.debug(' 5a compute_value %s', self)
         fields = records._field_computed[self]
         with records.env.do_in_draft(), records.env.protecting(fields, records):
             try:
+                _logger.debug(' 5b try compute_value %s', self)
                 self._compute_value(records)
             except (AccessError, MissingError):
                 # some record is forbidden or missing, retry record by record
+                _logger.debug(' 5c some record is forbidden or missing, retry record by record %s', self)
                 for record in records:
                     try:
                         self._compute_value(record)
                     except Exception as exc:
+                        _logger.error(' 5d compute_value fail %s', self)
                         record.env.cache.set_failed(record, [self], exc)
 
     def determine_value(self, record):
@@ -1147,17 +1171,21 @@ class Field(MetaField('DummyField', (object,), {})):
         env = record.env
 
         if self.store and not (self.compute and env.in_onchange):
+            _logger.debug(' 1a determine_value %s', self)
             # this is a stored field or an old-style function field
             if self.compute:
+                _logger.debug(' 1b determine_value %s', self)
                 # this is a stored computed field, check for recomputation
                 recs = record._recompute_check(self)
                 if recs:
                     # recompute the value (only in cache)
                     if self.recursive:
+                        _logger.debug(' 1c determine_value %s', self)
                         recs = record
                     self.compute_value(recs)
                     # HACK: if result is in the wrong cache, copy values
                     if recs.env != env:
+                        _logger.debug(' 1d determine_value %s', self)
                         computed = record._field_computed[self]
                         for source, target in pycompat.izip(recs, recs.with_env(env)):
                             try:
@@ -1167,21 +1195,34 @@ class Field(MetaField('DummyField', (object,), {})):
                                 target._cache.set_failed(target._fields, exc)
                     # the result is saved to database by BaseModel.recompute()
                     return
+            else:
+                _logger.debug(' 3a determine_value %s', self)
 
             # read the field from database
-            record._prefetch_field(self)
+            _logger.debug(' 3b prefetch_field %s', self)
+            try:
+                record._prefetch_field(self)
+            except Exception as exc:
+                _logger.exception('Prefetch error')
+                raise
+
+            _logger.debug(' 3c prefetch_field %s', self)
 
         elif self.compute:
+            _logger.debug(' 2a determine_value %s', self)
             # this is either a non-stored computed field, or a stored computed
             # field in onchange mode
             if self.recursive:
+                _logger.debug(' 2b determine_value %s', self)
                 self.compute_value(record)
             else:
+                _logger.debug(' 2c determine_value %s', self)
                 recs = record._in_cache_without(self)
                 recs = recs.with_prefetch(record._prefetch)
                 self.compute_value(recs)
 
         else:
+            _logger.debug(' 4a determine_value %s', self)
             # this is a non-stored non-computed field
             record.env.cache.set(record, self, self.convert_to_cache(False, record, validate=False))
 
