@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from xmlrpc.client import dumps, loads
 import xmlrpc.client
+import base64
 
 from werkzeug.wrappers import Response
 
@@ -57,6 +58,12 @@ class RPC(Controller):
                 return False
             elif type(res) == dict:
                 return dict((str(key), fix(value)) for key, value in res.items())
+            elif type(res) == list:
+                return [fix(x) for x in res]
+            elif type(res) == tuple:
+                return tuple(fix(x) for x in res)
+            elif type(res) == bytes:
+                return base64.b64encode(res)
             else:
                 return res
 
