@@ -21,6 +21,7 @@ var DECORATIONS = [
     'decoration-primary',
     'decoration-success',
     'decoration-warning',
+    'decoration-muted-strike',
     'decoration-strike'
 ];
 
