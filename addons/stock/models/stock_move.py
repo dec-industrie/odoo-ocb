@@ -13,6 +13,9 @@ from odoo.osv import expression
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT
 from odoo.tools.float_utils import float_compare, float_round, float_is_zero
 
+import logging
+_logger = logging.getLogger(__name__)
+
 PROCUREMENT_PRIORITIES = [('0', 'Not urgent'), ('1', 'Normal'), ('2', 'Urgent'), ('3', 'Very Urgent')]
 
 
@@ -755,6 +758,7 @@ class StockMove(models.Model):
         move_to_confirm = self.env['stock.move']
         move_waiting = self.env['stock.move']
 
+        _logger.info("Execute _action_confirm on {}".format(self.ids))
         to_assign = {}
         for move in self:
             # if the move is preceeded, then it's waiting (if preceeding move is done, then action_assign has been called already and its state is already available)
@@ -909,6 +913,7 @@ class StockMove(models.Model):
         equal to its `product_qty`. If it is less, the stock move is considered
         partially available.
         """
+        _logger.info("Execute _action_assign on {}".format(self.ids))
         assigned_moves = self.env['stock.move']
         partially_available_moves = self.env['stock.move']
         # Read the `reserved_availability` field of the moves out of the loop to prevent unwanted
@@ -1011,6 +1016,11 @@ class StockMove(models.Model):
                             available_move_lines[(move_line.location_id, move_line.lot_id, move_line.result_package_id, move_line.owner_id)] -= move_line.product_qty
                     for (location_id, lot_id, package_id, owner_id), quantity in available_move_lines.items():
                         need = move.product_qty - sum(move.move_line_ids.mapped('product_qty'))
+                        # If we don't need any quantity then reservation has already been done
+                        # (e.g. migration process) so we just set move assigned
+                        if float_is_zero(need, precision_rounding=rounding):
+                            assigned_moves |= move
+                            break
                         # `quantity` is what is brought by chained done move lines. We double check
                         # here this quantity is available on the quants themselves. If not, this
                         # could be the result of an inventory adjustment that removed totally of
@@ -1116,6 +1126,7 @@ class StockMove(models.Model):
         pass
 
     def _action_done(self):
+        _logger.info("Execute _action_done on {}".format(self.ids))
         self.filtered(lambda move: move.state == 'draft')._action_confirm()  # MRP allows scrapping draft moves
         moves = self.exists().filtered(lambda x: x.state not in ('done', 'cancel'))
         moves_todo = self.env['stock.move']
