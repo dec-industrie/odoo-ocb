@@ -299,6 +299,9 @@ class StockMove(models.Model):
                 rec.reserved_availability = rec.product_id.uom_id._compute_quantity(result.get(rec.id, 0.0), rec.product_uom, rounding_method='HALF-UP')
             except UserError as error:
                 _logger.error('%s: %s', rec.product_id.display_name, error.name)
+                error_extra_informations = _('This error is related to %s of product %s') % (str(rec), rec.product_id.display_name)
+                error.name += '\n' + error_extra_informations
+                error.args = (error.name, error.value)
                 raise error
 
     @api.one
