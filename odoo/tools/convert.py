@@ -666,7 +666,7 @@ form: module.record_id""" % (xml_id,)
             res[f_name] = f_val
 
         data = dict(xml_id=xid, values=res, noupdate=self.isnoupdate(data_node))
-        _logger.info("{}\n{}".format(pformat(rec_context), pformat(data)))
+        _logger.debug("{}\n{}".format(pformat(rec_context), pformat(data)))
         record = model.with_context(rec_context)._load_records([data], self.mode == 'update')
         if rec_id:
             self.idref[rec_id] = record.id
