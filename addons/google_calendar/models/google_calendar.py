@@ -907,6 +907,11 @@ class GoogleCalendar(models.AbstractModel):
                         try:
                             # if already deleted from gmail or never created
                             recs.delete_an_event(current_event[0])
+                            # YP: Also delete OE source event if this one is already archived
+                            if event.OE.event_id:
+                                event_id = CalendarEvent.browse(event.OE.event_id)
+                                if not event_id.active:
+                                    event_id.unlink(can_be_deleted=True)
                         except requests.exceptions.HTTPError as e:
                             if e.response.status_code in (401, 410,):
                                 pass
