@@ -430,6 +430,21 @@ define([
           event: 'resize',
           value: '0.25'
         });
+        var resizeButton20p = tplButton('<span class="note-fontsize-10">20%</span>', {
+          title: '--',
+          event: 'resize',
+          value: '0.20'
+        });
+        var resizeButton15p = tplButton('<span class="note-fontsize-10">15%</span>', {
+          title: '--',
+          event: 'resize',
+          value: '0.15'
+        });
+        var resizeButton10p = tplButton('<span class="note-fontsize-10">10%</span>', {
+          title: '--',
+          event: 'resize',
+          value: '0.10'
+        });
 
         var leftButton = tplIconButton(options.iconPrefix + options.icons.image.floatLeft, {
           title: lang.image.floatLeft,
@@ -474,7 +489,8 @@ define([
           value: 'none'
         });
 
-        var content = (options.disableResizeImage ? '' : '<div class="btn-group">' + autoButton + fullButton + halfButton + quarterButton + '</div>') +
+        extraButtons = resizeButton20p + resizeButton15p + resizeButton10p;
+        var content = (options.disableResizeImage ? '' : '<div class="btn-group">' + autoButton + fullButton + halfButton + quarterButton + extraButtons + '</div>') +
                       '<div class="btn-group">' + leftButton + rightButton + justifyButton + '</div>' +
                       '<div class="btn-group">' + roundedButton + circleButton + thumbnailButton + noneButton + '</div>' +
                       '<div class="btn-group">' + removeButton + '</div>';
