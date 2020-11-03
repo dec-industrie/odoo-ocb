@@ -717,6 +717,10 @@ var Discuss = AbstractAction.extend(ControlPanelMixin, {
         this._threadWidget = new ThreadWidget(this, {
             areMessageAttachmentsDeletable: false,
             loadMoreOnScroll: true,
+            // YP: Force ORDER.DESC rendering to show latest message on top
+            // on inbox view, more references in:
+            // `addons/mail/static/src/js/thread_widget.js`
+            // displayOrder: -1, // #YP
         });
 
         this._threadWidget
