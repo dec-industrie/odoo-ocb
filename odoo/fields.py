@@ -37,7 +37,7 @@ EMPTY_DICT = frozendict()
 
 RENAMED_ATTRS = [('select', 'index'), ('digits_compute', 'digits')]
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger('force_'+__name__)
 _schema = logging.getLogger(__name__[:-7] + '.schema')
 
 Default = object()                      # default value for __init__() methods

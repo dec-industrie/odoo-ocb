@@ -58,7 +58,7 @@ from werkzeug.local import Local, release_local
 from odoo.tools import frozendict, classproperty, StackMap, pycompat
 from odoo.exceptions import CacheMiss
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger('force_'+__name__)
 
 # The following attributes are used, and reflected on wrapping methods:
 #  - method._constrains: set by @constrains, specifies constraint dependencies
