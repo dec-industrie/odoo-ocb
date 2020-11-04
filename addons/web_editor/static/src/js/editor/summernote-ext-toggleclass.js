@@ -28,17 +28,16 @@
                     "text-warning",
                     "text-danger",
                     "text-success",
-                    "alert alert-success",
-                    "alert alert-info",
-                    "alert alert-warning",
-                    "alert alert-danger",
+                    "alert alert-success figure",
+                    "alert alert-info figure",
+                    "alert alert-warning figure",
+                    "alert alert-danger figure",
                     "btn btn-primary",
                     "btn btn-secondary",];
                 var list = '';
                 for (var i = 0; i < classTags.length; i++) {
                     list += '<li><a style="display: inline-block;" data-event="toggleClassDropdown" href="#" data-value="' + classTags[i] + '" class="' + classTags[i] + '" >' + classTags[i] + '</a></li>';
                 }
-                // list += '<li><a data-event="toggleClassDropdown" href="#" data-value="codemirror">Code Mirror</a></li>';
                 var dropdown = '<ul class="dropdown-menu" style="height: auto; width:400px; max-height: 200px; max-width:600px; overflow-x: hidden;">' + list + '</ul>';
 
                 return tmpl.iconButton('fa fa-css3', {
