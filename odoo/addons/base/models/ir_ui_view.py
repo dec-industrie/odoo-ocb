@@ -582,6 +582,8 @@ actual arch.
         """
         if spec.tag == 'xpath':
             nodes = etree.ETXPath(spec.get('expr'))(arch)
+            if not nodes:
+                print(spec.get('expr'), 'not found in', etree.tostring(arch))
             return nodes[0] if nodes else None
         elif spec.tag == 'field':
             # Only compare the field name: a field can be only once in a given view
@@ -590,6 +592,7 @@ actual arch.
             for node in arch.iter('field'):
                 if node.get('name') == spec.get('name'):
                     return node
+            print(spec.get('name'), 'not found in', etree.tostring(arch))
             return None
 
         for node in arch.iter(spec.tag):
