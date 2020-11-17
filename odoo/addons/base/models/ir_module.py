@@ -22,6 +22,7 @@ from docutils.transforms import Transform, writer_aux
 from docutils.writers.html4css1 import Writer
 import lxml.html
 import psycopg2
+import progressbar
 
 import odoo
 from odoo import api, fields, models, modules, tools, _
@@ -705,36 +706,39 @@ class Module(models.Model):
         known_mods = self.with_context(lang=None).search([])
         known_mods_names = {mod.name: mod for mod in known_mods}
 
-        # iterate through detected modules and update/create them in db
-        for mod_name in modules.get_modules():
-            mod = known_mods_names.get(mod_name)
-            terp = self.get_module_info(mod_name)
-            values = self.get_values_from_terp(terp)
+        with progressbar.ProgressBar(max_value=len(modules.get_modules())) as bar:
+            # iterate through detected modules and update/create them in db
+            for mod_name in modules.get_modules():
+                bar.update(bar.value + 1)
+                mod = known_mods_names.get(mod_name)
+                terp = self.get_module_info(mod_name)
+                values = self.get_values_from_terp(terp)
 
-            if mod:
-                updated_values = {}
-                for key in values:
-                    old = getattr(mod, key)
-                    updated = tools.ustr(values[key]) if isinstance(values[key], pycompat.string_types) else values[key]
-                    if (old or updated) and updated != old:
-                        updated_values[key] = values[key]
-                if terp.get('installable', True) and mod.state == 'uninstallable':
-                    updated_values['state'] = 'uninstalled'
-                if parse_version(terp.get('version', default_version)) > parse_version(mod.latest_version or default_version):
-                    res[0] += 1
-                if updated_values:
-                    mod.write(updated_values)
-            else:
-                mod_path = modules.get_module_path(mod_name)
-                if not mod_path or not terp:
-                    continue
-                state = "uninstalled" if terp.get('installable', True) else "uninstallable"
-                mod = self.create(dict(name=mod_name, state=state, **values))
-                res[1] += 1
+                if mod:
+                    updated_values = {}
+                    for key in values:
+                        old = getattr(mod, key)
+                        updated = tools.ustr(values[key]) if isinstance(values[key], pycompat.string_types) else values[key]
+                        if (old or updated) and updated != old:
+                            updated_values[key] = values[key]
+                    if terp.get('installable', True) and mod.state == 'uninstallable':
+                        updated_values['state'] = 'uninstalled'
+                    if parse_version(terp.get('version', default_version)) > parse_version(mod.latest_version or default_version):
+                        res[0] += 1
+                    if updated_values:
+                        mod.write(updated_values)
+                else:
+                    mod_path = modules.get_module_path(mod_name)
+                    if not mod_path or not terp:
+                        continue
+                    state = "uninstalled" if terp.get('installable', True) else "uninstallable"
+                    mod = self.create(dict(name=mod_name, state=state, **values))
+                    res[1] += 1
 
-            mod._update_dependencies(terp.get('depends', []))
-            mod._update_exclusions(terp.get('excludes', []))
-            mod._update_category(terp.get('category', 'Uncategorized'))
+                mod._update_dependencies(terp.get('depends', []))
+                mod._update_exclusions(terp.get('excludes', []))
+                mod._update_category(terp.get('category', 'Uncategorized'))
+            bar.finish()
 
         return res
 

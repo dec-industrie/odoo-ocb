@@ -5,6 +5,7 @@
 
 import itertools
 import logging
+import progressbar
 
 import odoo
 import odoo.tools as tools
@@ -57,15 +58,18 @@ class Graph(dict):
             force = []
         packages = []
         len_graph = len(self)
-        for module in module_list:
-            # This will raise an exception if no/unreadable descriptor file.
-            # NOTE The call to load_information_from_description_file is already
-            # done by db.initialize, so it is possible to not do it again here.
-            info = odoo.modules.module.load_information_from_description_file(module)
-            if info and info['installable']:
-                packages.append((module, info)) # TODO directly a dict, like in get_modules_with_version
-            elif module != 'studio_customization':
-                _logger.warning('module %s: not installable, skipped', module)
+        with progressbar.ProgressBar(max_value=len(module_list)) as bar:
+            for module in module_list:
+                bar.update(bar.value + 1)
+                # This will raise an exception if no/unreadable descriptor file.
+                # NOTE The call to load_information_from_description_file is already
+                # done by db.initialize, so it is possible to not do it again here.
+                info = odoo.modules.module.load_information_from_description_file(module)
+                if info and info['installable']:
+                    packages.append((module, info)) # TODO directly a dict, like in get_modules_with_version
+                elif module != 'studio_customization':
+                    _logger.warning('module %s: not installable, skipped', module)
+            bar.finish()
 
         dependencies = dict([(p, info['depends']) for p, info in packages])
         current, later = set([p for p, info in packages]), set()
