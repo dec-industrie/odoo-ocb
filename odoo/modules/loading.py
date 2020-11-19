@@ -24,6 +24,12 @@ from odoo.modules.module import adapt_version, initialize_sys_path, load_openerp
 _logger = logging.getLogger(__name__)
 _test_logger = logging.getLogger('odoo.tests')
 
+try:
+    import pydevd
+    DEBUGGING = True
+except ImportError:
+    DEBUGGING = False
+
 
 def load_data(cr, idref, mode, kind, package, report):
     """
@@ -375,8 +381,9 @@ def load_modules(db, force_demo=False, status=None, update_module=False):
         if update_module:
             env = api.Environment(cr, SUPERUSER_ID, {})
             Module = env['ir.module.module']
-            _logger.info('updating modules list')
-            Module.update_list()
+            if not DEBUGGING:
+                _logger.info('updating modules list')
+                Module.update_list()
 
             _check_module_names(cr, itertools.chain(tools.config['init'], tools.config['update']))
 
