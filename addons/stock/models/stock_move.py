@@ -920,7 +920,8 @@ class StockMove(models.Model):
         equal to its `product_qty`. If it is less, the stock move is considered
         partially available.
         """
-        _logger.info("Execute _action_assign on {}".format(self.ids))
+        if self.ids:
+            _logger.info("Execute _action_assign on {}".format(self.ids))
         assigned_moves = self.env['stock.move']
         partially_available_moves = self.env['stock.move']
         # Read the `reserved_availability` field of the moves out of the loop to prevent unwanted
