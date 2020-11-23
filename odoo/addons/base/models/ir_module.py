@@ -631,7 +631,7 @@ class Module(models.Model):
     @api.multi
     def button_upgrade(self):
         Dependency = self.env['ir.module.module.dependency']
-        if not modules.loading.DEBUGGING:
+        if not self.env.context.get('ignore_module_list_update'):
             self.update_list()
 
         todo = list(self)
