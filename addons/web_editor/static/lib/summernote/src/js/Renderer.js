@@ -420,6 +420,21 @@ define([
           event: 'resize',
           value: '1'
         });
+        var resizeButton80p = tplButton('<span class="note-fontsize-10">80%</span>', {
+          title: '--',
+          event: 'resize',
+          value: '0.80'
+        });
+        var resizeButton75p = tplButton('<span class="note-fontsize-10">75%</span>', {
+          title: '--',
+          event: 'resize',
+          value: '0.75'
+        });
+        var resizeButton60p = tplButton('<span class="note-fontsize-10">60%</span>', {
+          title: '--',
+          event: 'resize',
+          value: '0.60'
+        });
         var halfButton = tplButton('<span class="note-fontsize-10">50%</span>', {
           title: lang.image.resizeHalf,
           event: 'resize',
@@ -489,8 +504,9 @@ define([
           value: 'none'
         });
 
-        extraButtons = resizeButton20p + resizeButton15p + resizeButton10p;
-        var content = (options.disableResizeImage ? '' : '<div class="btn-group">' + autoButton + fullButton + halfButton + quarterButton + extraButtons + '</div>') +
+        extraLargerButtons = resizeButton80p + resizeButton75p + resizeButton60p;
+        extraSmallerButtons = resizeButton20p + resizeButton15p + resizeButton10p;
+        var content = (options.disableResizeImage ? '' : '<div class="btn-group">' + autoButton + fullButton + extraLargerButtons + halfButton + quarterButton + extraSmallerButtons + '</div>') +
                       '<div class="btn-group">' + leftButton + rightButton + justifyButton + '</div>' +
                       '<div class="btn-group">' + roundedButton + circleButton + thumbnailButton + noneButton + '</div>' +
                       '<div class="btn-group">' + removeButton + '</div>';
