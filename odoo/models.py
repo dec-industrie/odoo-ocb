@@ -64,6 +64,7 @@ from .tools import date_utils
 _logger = logging.getLogger(__name__)
 _schema = logging.getLogger(__name__ + '.schema')
 _unlink = logging.getLogger(__name__ + '.unlink')
+_openobject = logging.getLogger(__name__ + '.openobject')
 
 regex_order = re.compile('^(\s*([a-z0-9:_]+|"[a-z0-9:_]+")(\s+(desc|asc))?\s*(,|$))+(?<!,)$', re.I)
 regex_object_name = re.compile(r'^[a-z0-9_.]+$')
@@ -1557,6 +1558,7 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
         Returns the number of records in the current model matching :ref:`the
         provided domain <reference/orm/domains>`.
         """
+        _openobject.debug('search_count(%s, %s)' % (self._name, args))
         res = self.search(args, count=True)
         return res if isinstance(res, pycompat.integer_types) else len(res)
 
@@ -2106,6 +2108,7 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
         :raise AccessError: * if user has no read rights on the requested object
                             * if user tries to bypass access rules for read on the requested object
         """
+        _openobject.debug('read_group(%s, %s, %s, %s, %d, %d)' % (self._name, domain, fields, groupby, offset, limit or 0))
         result = self._read_group_raw(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
 
         groupby = [groupby] if isinstance(groupby, pycompat.string_types) else list(OrderedSet(groupby))
@@ -2799,6 +2802,7 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
         :raise AccessError: if user has no read rights on some of the given
                 records
         """
+        _openobject.debug('read(%s, %s) len=%d' % (self._name, fields, len(self)))
         # check access rights
         self.check_access_rights('read')
         fields = self.check_field_access_rights('read', fields)
@@ -3305,6 +3309,7 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
         if not self:
             return True
 
+        _openobject.debug('write(%s, %s) len=%d' % (self._name, vals, len(self)))
         self._check_concurrency()
         self.check_access_rights('write')
 
@@ -4142,6 +4147,7 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
                                   (not for ir.rules, this is only for ir.model.access)
         :return: a list of record ids or an integer (if count is True)
         """
+        _openobject.debug('_search(%s, %s, %d, %d)' % (self._name, args, offset, limit or 0))
         self.sudo(access_rights_uid or self._uid).check_access_rights('read')
 
         if expression.is_false(self, args):
@@ -4616,6 +4622,7 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
         :rtype: List of dictionaries.
 
         """
+        _openobject.debug('search_read(%s, %s, %s, %d, %d)' % (self._name, domain, fields, offset, limit or 0))
         records = self.search(domain or [], offset=offset, limit=limit, order=order)
         if not records:
             return []
