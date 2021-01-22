@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
+import progressbar
+import logging
+
 from odoo import api, fields, models, _
 from odoo.addons import decimal_precision as dp
 from odoo.exceptions import UserError
@@ -8,6 +11,8 @@ from odoo.tools import pycompat,float_is_zero
 from odoo.tools.float_utils import float_round
 from datetime import datetime
 import operator as py_operator
+
+_logger = logging.getLogger(__name__)
 
 OPERATORS = {
     '<': py_operator.lt,
@@ -78,12 +83,16 @@ class Product(models.Model):
 
     @api.depends('stock_move_ids.product_qty', 'stock_move_ids.state')
     def _compute_quantities(self):
+        _logger.info('_compute_quantities')
         res = self._compute_quantities_dict(self._context.get('lot_id'), self._context.get('owner_id'), self._context.get('package_id'), self._context.get('from_date'), self._context.get('to_date'))
-        for product in self:
-            product.qty_available = res[product.id]['qty_available']
-            product.incoming_qty = res[product.id]['incoming_qty']
-            product.outgoing_qty = res[product.id]['outgoing_qty']
-            product.virtual_available = res[product.id]['virtual_available']
+        with progressbar.ProgressBar(max_value=len(self)) as bar:
+            for product in self:
+                bar.update(bar.value + 1)
+                product.qty_available = res[product.id]['qty_available']
+                product.incoming_qty = res[product.id]['incoming_qty']
+                product.outgoing_qty = res[product.id]['outgoing_qty']
+                product.virtual_available = res[product.id]['virtual_available']
+            bar.finish()
 
     def _product_available(self, field_names=None, arg=False):
         """ Compatibility method """
@@ -289,9 +298,14 @@ class Product(models.Model):
         ids = []
         # Order the search on `id` to prevent the default order on the product name which slows
         # down the search because of the join on the translation table to get the translated names.
-        for product in self.with_context(prefetch_fields=False).search([], order='id'):
-            if OPERATORS[operator](product[field], value):
-                ids.append(product.id)
+
+        product_ids = self.with_context(prefetch_fields=False).search([], order='id')
+        with progressbar.ProgressBar(max_value=len(product_ids)) as bar:
+            for product in product_ids:
+                bar.update(bar.value + 1)
+                if OPERATORS[operator](product[field], value):
+                    ids.append(product.id)
+            bar.finish()
         return [('id', 'in', ids)]
 
     def _search_qty_available_new(self, operator, value, lot_id=False, owner_id=False, package_id=False):
