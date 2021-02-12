@@ -62,6 +62,7 @@ from .tools.translate import _
 from .tools import date_utils
 
 _logger = logging.getLogger(__name__)
+_logger_default = logging.getLogger(__name__ + '.default')
 _schema = logging.getLogger(__name__ + '.schema')
 _unlink = logging.getLogger(__name__ + '.unlink')
 _openobject = logging.getLogger(__name__ + '.openobject')
@@ -1159,11 +1160,13 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
             key = 'default_' + name
             if key in self._context:
                 defaults[name] = self._context[key]
+                _logger_default.info('From context: %s = %s', name, defaults[name])
                 continue
 
             # 2. look up ir.default
             if name in ir_defaults:
                 defaults[name] = ir_defaults[name]
+                _logger_default.info('From ir_defaults: %s = %s', name, defaults[name])
                 continue
 
             field = self._fields.get(name)
@@ -1171,6 +1174,7 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
             # 3. look up field.default
             if field and field.default:
                 defaults[name] = field.default(self)
+                _logger_default.info('From field: %s = %s', name, defaults[name])
                 continue
 
             # 4. delegate to parent model
@@ -1185,6 +1189,7 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
         for model, names in parent_fields.items():
             defaults.update(self.env[model].default_get(names))
 
+        _logger_default.info('Default values: %s', defaults)
         return defaults
 
     @api.model
@@ -3682,7 +3687,10 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
         columns0 = [('id', "nextval(%s)", self._sequence)]
         if self._log_access:
             columns0.append(('create_uid', "%s", self._uid))
-            columns0.append(('create_date', "%s", AsIs("(now() at time zone 'UTC')")))
+            if self.env.context.get('custom_create_date'):
+                columns0.append(('create_date', "%s", self.env.context.get('custom_create_date')))
+            else:
+                columns0.append(('create_date', "%s", AsIs("(now() at time zone 'UTC')")))
             columns0.append(('write_uid', "%s", self._uid))
             columns0.append(('write_date', "%s", AsIs("(now() at time zone 'UTC')")))
 
