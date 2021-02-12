@@ -521,11 +521,14 @@ class ProductTemplate(models.Model):
     )
     def _compute_quantities(self):
         res = self._compute_quantities_dict()
-        for template in self:
-            template.qty_available = res[template.id]['qty_available']
-            template.virtual_available = res[template.id]['virtual_available']
-            template.incoming_qty = res[template.id]['incoming_qty']
-            template.outgoing_qty = res[template.id]['outgoing_qty']
+        with progressbar.ProgressBar(max_value=len(self)) as bar:
+            for template in self:
+                bar.update(bar.value + 1)
+                template.qty_available = res[template.id]['qty_available']
+                template.virtual_available = res[template.id]['virtual_available']
+                template.incoming_qty = res[template.id]['incoming_qty']
+                template.outgoing_qty = res[template.id]['outgoing_qty']
+            bar.finish()
 
     def _product_available(self, name, arg):
         return self._compute_quantities_dict()
