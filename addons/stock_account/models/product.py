@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
-import progressbar
 import logging
 
 from odoo import api, fields, models, tools, _
 from odoo.exceptions import UserError
 from odoo.tools import float_is_zero, pycompat
+from odoo.tools.progressbar import progressbar as pb
 from odoo.addons import decimal_precision as dp
 
 _logger = logging.getLogger(__name__)
@@ -252,41 +252,38 @@ class ProductProduct(models.Model):
             product_values[product_id] = value
             product_move_ids[product_id] = move_ids
 
-        with progressbar.ProgressBar(max_value=len(self)) as bar:
-            for product in self:
-                bar.update(bar.value + 1)
-                if product.cost_method in ['standard', 'average']:
-                    qty_available = product.with_context(company_owned=True, owner_id=False).qty_available
-                    price_used = product.standard_price
-                    if to_date:
-                        price_used = product.get_history_price(
-                            self.env.user.company_id.id,
-                            date=to_date,
-                        )
-                    product.stock_value = price_used * qty_available
-                    product.qty_at_date = qty_available
-                elif product.cost_method == 'fifo':
-                    if to_date:
-                        if product.product_tmpl_id.valuation == 'manual_periodic':
-                            product.stock_value = product_values[product.id]
-                            product.qty_at_date = product.with_context(company_owned=True, owner_id=False).qty_available
-                            product.stock_fifo_manual_move_ids = StockMove.browse(product_move_ids[product.id])
-                        elif product.product_tmpl_id.valuation == 'real_time':
-                            valuation_account_id = product.categ_id.property_stock_valuation_account_id.id
-                            value, quantity, aml_ids = fifo_automated_values.get((product.id, valuation_account_id)) or (0, 0, [])
-                            product.stock_value = value
-                            product.qty_at_date = quantity
-                            product.stock_fifo_real_time_aml_ids = self.env['account.move.line'].browse(aml_ids)
-                    else:
+        for product in pb(self):
+            if product.cost_method in ['standard', 'average']:
+                qty_available = product.with_context(company_owned=True, owner_id=False).qty_available
+                price_used = product.standard_price
+                if to_date:
+                    price_used = product.get_history_price(
+                        self.env.user.company_id.id,
+                        date=to_date,
+                    )
+                product.stock_value = price_used * qty_available
+                product.qty_at_date = qty_available
+            elif product.cost_method == 'fifo':
+                if to_date:
+                    if product.product_tmpl_id.valuation == 'manual_periodic':
                         product.stock_value = product_values[product.id]
                         product.qty_at_date = product.with_context(company_owned=True, owner_id=False).qty_available
-                        if product.product_tmpl_id.valuation == 'manual_periodic':
-                            product.stock_fifo_manual_move_ids = StockMove.browse(product_move_ids[product.id])
-                        elif product.product_tmpl_id.valuation == 'real_time':
-                            valuation_account_id = product.categ_id.property_stock_valuation_account_id.id
-                            value, quantity, aml_ids = fifo_automated_values.get((product.id, valuation_account_id)) or (0, 0, [])
-                            product.stock_fifo_real_time_aml_ids = self.env['account.move.line'].browse(aml_ids)
-            bar.finish()
+                        product.stock_fifo_manual_move_ids = StockMove.browse(product_move_ids[product.id])
+                    elif product.product_tmpl_id.valuation == 'real_time':
+                        valuation_account_id = product.categ_id.property_stock_valuation_account_id.id
+                        value, quantity, aml_ids = fifo_automated_values.get((product.id, valuation_account_id)) or (0, 0, [])
+                        product.stock_value = value
+                        product.qty_at_date = quantity
+                        product.stock_fifo_real_time_aml_ids = self.env['account.move.line'].browse(aml_ids)
+                else:
+                    product.stock_value = product_values[product.id]
+                    product.qty_at_date = product.with_context(company_owned=True, owner_id=False).qty_available
+                    if product.product_tmpl_id.valuation == 'manual_periodic':
+                        product.stock_fifo_manual_move_ids = StockMove.browse(product_move_ids[product.id])
+                    elif product.product_tmpl_id.valuation == 'real_time':
+                        valuation_account_id = product.categ_id.property_stock_valuation_account_id.id
+                        value, quantity, aml_ids = fifo_automated_values.get((product.id, valuation_account_id)) or (0, 0, [])
+                        product.stock_fifo_real_time_aml_ids = self.env['account.move.line'].browse(aml_ids)
 
     def action_valuation_at_date_details(self):
         """ Returns an action with either a list view of all the valued stock moves of `self` if the
