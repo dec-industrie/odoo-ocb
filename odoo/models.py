@@ -1189,7 +1189,8 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
         for model, names in parent_fields.items():
             defaults.update(self.env[model].default_get(names))
 
-        _logger_default.info('Default values: %s', defaults)
+        if defaults:
+            _logger_default.info('Default values: %s', defaults)
         return defaults
 
     @api.model
