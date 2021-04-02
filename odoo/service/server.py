@@ -119,6 +119,7 @@ class RequestHandler(werkzeug.serving.WSGIRequestHandler):
 
     def address_string(self):
         forwarded_for = self.headers.get('X-Forwarded-For', '').split(',')
+        # _logger.info('%r', forwarded_for)
         if forwarded_for and forwarded_for[0]:
             res = forwarded_for[0]
         else:
