@@ -1160,13 +1160,13 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
             key = 'default_' + name
             if key in self._context:
                 defaults[name] = self._context[key]
-                _logger_default.info('From context: %s = %s', name, defaults[name])
+                _logger_default.debug('From context: %s = %s', name, defaults[name])
                 continue
 
             # 2. look up ir.default
             if name in ir_defaults:
                 defaults[name] = ir_defaults[name]
-                _logger_default.info('From ir_defaults: %s = %s', name, defaults[name])
+                _logger_default.debug('From ir_defaults: %s = %s', name, defaults[name])
                 continue
 
             field = self._fields.get(name)
@@ -1174,7 +1174,7 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
             # 3. look up field.default
             if field and field.default:
                 defaults[name] = field.default(self)
-                _logger_default.info('From field: %s = %s', name, defaults[name])
+                _logger_default.debug('From field: %s = %s', name, defaults[name])
                 continue
 
             # 4. delegate to parent model
@@ -1190,7 +1190,7 @@ class BaseModel(MetaModel('DummyModel', (object,), {'_register': False})):
             defaults.update(self.env[model].default_get(names))
 
         if defaults:
-            _logger_default.info('Default values: %s', defaults)
+            _logger_default.debug('Default values: %s', defaults)
         return defaults
 
     @api.model
